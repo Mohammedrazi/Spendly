@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Spendly</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta name="description" content="Spendly - a simple personal budget tracker">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -177,7 +178,7 @@ const DEF=[D("Dining","🍴","#46535f"),D("Groceries","🛒","#3f7a3a"),D("Shopp
 const fresh=()=>({tx:[],cats:JSON.parse(JSON.stringify(DEF)),budgets:{},cur:"QAR",name:"Mohammed Razi",ts:0,bts:0,sts:0,del:{}});
 let S=fresh(),KEY="cc2";
 function loadS(){S=fresh();if(sess())S.name=sess().email.split("@")[0];try{const d=JSON.parse(localStorage.getItem(KEY));if(d)S=Object.assign(S,d)}catch(e){}}
-var bt;const save=ns=>{if(!ns)touch();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}clearTimeout(bt);if(!ns&&S.gsUrl&&S.auto!==false)bt=setTimeout(()=>backup(1),3000);if(!ns)queueSync()};
+var bt;const save=ns=>{if(!ns)touch();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}clearTimeout(bt);if(!ns&&S.gsUrl&&S.auto!==false)bt=setTimeout(()=>backup(1),3000);if(!ns&&S.gSheetId&&S.gAuto!==false)setTimeout(()=>gBackup(1),3500);if(!ns)queueSync()};
 function touch(){S.ts=Date.now();setMeta({dirty:1})}
 const saveQuiet=()=>{touch();save(1);queueSync()};
 const $=id=>document.getElementById(id);
@@ -253,7 +254,7 @@ function logout(){try{localStorage.removeItem("cc-sess")}catch(e){}gate()}
 
 /* ---- cloud sync: every account's data lives in the Google Sheet and follows the login ---- */
 let st,sy={busy:false,again:false,err:""};
-const SKIP=["gsUrl","gsKey","auto","lastBackup"];
+const SKIP=["gsUrl","gsKey","auto","lastBackup","gEmail","gSheetId","gLast","gAuto"];
 function pack(){const o={};for(const k in S)if(!SKIP.includes(k))o[k]=S[k];return o}
 function getMeta(){try{return JSON.parse(localStorage.getItem(KEY+":sync"))||{}}catch(e){return {}}}
 function setMeta(o){try{localStorage.setItem(KEY+":sync",JSON.stringify(Object.assign(getMeta(),o)))}catch(e){}}
@@ -355,6 +356,7 @@ function render(){
     <button class="opt" data-a="exp">⬇️<div><b>Export CSV</b><span>Download all transactions</span></div></button>
     <button class="opt" data-a="imp">⬆️<div><b>Import CSV</b><span>Add transactions from a file</span></div></button>
     <button class="opt" data-a="gs">☁️<div><b>Google Sheet backup</b><span>${S.gsUrl?"Connected"+(S.lastBackup?" · last "+esc(new Date(S.lastBackup).toLocaleString()):""):"Back up to your Google Sheet"}</span></div></button>
+    <button class="opt" data-a="gapi">🔐<div><b>Google sign-in backup (API)</b><span>${S.gEmail?esc(S.gEmail)+(S.gLast?" · last "+esc(new Date(S.gLast).toLocaleString()):" · connected"):"Sign in with Google, auto-creates your sheet"}</span></div></button>
     <button class="opt" data-a="wipe">🗑️<div><b>Delete all data</b><span>Transactions and budgets</span></div></button>
     <button class="opt" data-a="out">🔒<div><b>Log out</b><span>Signed in as ${esc(user()?user().email:"")}</span></div></button></div><p class="dev">Developed by Mohammed Razi</p>`;
   }
@@ -490,7 +492,7 @@ document.addEventListener("click",e=>{
   else if(d.a==="exp")exportCSV();
   else if(d.a==="imp")$("file").click();
   else if(d.a==="wipe")wipeAll();
-  else if(d.a==="gs")openGS();
+  else if(d.a==="gs")openGS();else if(d.a==="gapi")openGApi();
   else if(d.a==="sync")queueSync(0);
   else if(d.a==="out")logout();
 });
@@ -514,7 +516,7 @@ function openGS(){
   $("gr").onclick=()=>{gsRead();if(!S.gsUrl){gsMsg("Paste the web app URL first.");return}restoreGS()}}
 async function backup(silent){
   if(!S.gsUrl)return;
-  const {gsUrl,gsKey,auto,lastBackup,...data}=S;
+  const {gsUrl,gsKey,auto,lastBackup,gEmail,gSheetId,gLast,gAuto,...data}=S;
   const rows=sorted(S.tx).map(t=>[t.date,t.time,t.type==="e"?"Expense":"Income",catOf(t.cat).name,t.amt,t.title||""]);
   try{
     await fetch(S.gsUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({key:S.gsKey||"",data,rows})});
@@ -530,6 +532,100 @@ async function restoreGS(){
       const n=Date.now(),keep=new Set(d.tx.map(t=>t.id));S.tx.forEach(t=>{if(!keep.has(t.id))S.del["t"+t.id]=n});d.tx.forEach(t=>delete S.del["t"+t.id]);(d.cats||[]).forEach(c=>delete S.del["c"+c.id]);
       Object.assign(S,{tx:d.tx.map(t=>({...t,m:n})),cats:d.cats||S.cats,budgets:d.budgets||{},cur:d.cur||S.cur,name:d.name||S.name,bts:n,sts:n});saveQuiet();render()})
   }catch(e){gsMsg("Couldn't read a backup. Check the URL and secret key, and that a backup exists.")}}
+/* ---- Google Sheet backup: sign in with a real Google account, one separate Sheet per Spendly user ---- */
+/* Paste your OAuth Web client ID here (Google Cloud Console), or enter it once in the panel. */
+const G_CLIENT_ID="";
+const G_SCOPE="openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.file";
+let gTok=null,gExp=0,gCli=null;
+const gCid=()=>G_CLIENT_ID||localStorage.getItem("cc-gcid")||"";
+const gOk=()=>gTok&&Date.now()<gExp-60000;
+function gaMsg(t){const m=$("gam");if(m)m.textContent=t}
+function gToken(interactive){return new Promise((res,rej)=>{
+  if(gOk())return res(gTok);
+  if(!interactive)return rej(new Error("signin"));
+  if(!(window.google&&google.accounts&&google.accounts.oauth2))return rej(new Error("Google sign-in is still loading or blocked. Check your connection and that the app is opened from https://, not as a local file."));
+  const cid=gCid();if(!cid)return rej(new Error("Enter your Google Client ID first."));
+  gCli=google.accounts.oauth2.initTokenClient({client_id:cid,scope:G_SCOPE,callback:r=>{
+    if(r.error)return rej(new Error(r.error_description||r.error));
+    gTok=r.access_token;gExp=Date.now()+(r.expires_in||3600)*1000;res(gTok)},
+    error_callback:e=>rej(new Error(e&&e.type==="popup_closed"?"Sign-in cancelled.":"Sign-in failed."))});
+  gCli.requestAccessToken({prompt:S.gEmail?"":"select_account",login_hint:S.gEmail||undefined})})}
+async function gApi(url,opt){
+  const r=await fetch(url,Object.assign({},opt,{headers:Object.assign({Authorization:"Bearer "+gTok},opt&&opt.headers)}));
+  if(r.status===401){gTok=null;throw new Error("Google session expired. Press the button again.")}
+  if(!r.ok){let m="";try{m=(await r.json()).error.message}catch(e){}throw new Error(m||"Google error "+r.status)}
+  return r.json()}
+const gJson=(url,method,body)=>gApi(url,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+const appUser=()=>(sess()&&sess().email)||"user";
+async function gSignIn(){
+  await gToken(true);
+  const me=await gApi("https://www.googleapis.com/oauth2/v3/userinfo");
+  if(S.gEmail&&S.gEmail!==me.email)delete S.gSheetId;
+  S.gEmail=me.email;save(1);return me.email}
+async function gFind(){
+  const q="mimeType='application/vnd.google-apps.spreadsheet' and trashed=false and appProperties has { key='spendlyUser' and value='"+appUser().replace(/'/g,"\\'")+"' }";
+  const r=await gApi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&q="+encodeURIComponent(q));
+  return r.files&&r.files[0]?r.files[0].id:null}
+async function gCreate(){
+  const t="Spendly Backup - "+appUser();
+  const f=await gJson("https://sheets.googleapis.com/v4/spreadsheets","POST",{properties:{title:t},sheets:[{properties:{title:"Transactions"}},{properties:{title:"Data"}}]});
+  await gJson("https://www.googleapis.com/drive/v3/files/"+f.spreadsheetId,"PATCH",{appProperties:{spendlyUser:appUser()}});
+  return f.spreadsheetId}
+async function gSheetFor(create){
+  if(S.gSheetId){try{await gApi("https://sheets.googleapis.com/v4/spreadsheets/"+S.gSheetId+"?fields=spreadsheetId");return S.gSheetId}catch(e){if(/expired/.test(e.message))throw e;delete S.gSheetId}}
+  let id=await gFind();if(!id&&create)id=await gCreate();
+  if(id){S.gSheetId=id;save(1)}return id}
+async function gBackup(silent){
+  if(!S.gSheetId&&silent)return;
+  try{
+    await gToken(!silent);
+    if(!silent)gaMsg("Backing up…");
+    const id=await gSheetFor(true),base="https://sheets.googleapis.com/v4/spreadsheets/"+id;
+    const {gsUrl,gsKey,auto,lastBackup,gEmail,gSheetId,gLast,gAuto,...data}=S;
+    const rows=[["Date","Time","Type","Category","Amount","Title"]].concat(sorted(S.tx).map(t=>[t.date,t.time,t.type==="e"?"Expense":"Income",catOf(t.cat).name,t.amt,t.title||""]));
+    const js=JSON.stringify(data),chunks=[];for(let i=0;i<js.length;i+=40000)chunks.push([js.slice(i,i+40000)]);
+    await gJson(base+"/values:batchClear","POST",{ranges:["Transactions!A:Z","Data!A:A"]});
+    await gJson(base+"/values:batchUpdate","POST",{valueInputOption:"RAW",data:[{range:"Transactions!A1",values:rows},{range:"Data!A1",values:chunks.length?chunks:[[""]]}]});
+    S.gLast=Date.now();save(1);
+    gaMsg("Backed up at "+new Date().toLocaleTimeString()+" to "+S.gEmail+".");
+    if(!silent)openGApi(1)
+  }catch(e){if(!silent||e.message!=="signin")gaMsg(e.message||"Backup failed.")}}
+async function gRestore(){
+  try{
+    await gToken(true);gaMsg("Looking for your sheet…");
+    const id=await gSheetFor(false);
+    if(!id){gaMsg("No Spendly backup found in "+S.gEmail+" yet. Press Back up now to create one.");return}
+    const r=await gApi("https://sheets.googleapis.com/v4/spreadsheets/"+id+"/values/Data!A:A");
+    const d=JSON.parse((r.values||[]).map(x=>x[0]||"").join(""));
+    if(!d||!Array.isArray(d.tx))throw new Error("The sheet has no backup data.");
+    $("md").hidden=true;
+    ask("Restore from sheet?",{text:"This replaces the data on this device with the backup ("+d.tx.length+" transactions).",ok:"Restore",danger:1},()=>{
+      const n=Date.now(),keep=new Set(d.tx.map(t=>t.id));S.tx.forEach(t=>{if(!keep.has(t.id))S.del["t"+t.id]=n});d.tx.forEach(t=>delete S.del["t"+t.id]);(d.cats||[]).forEach(c=>delete S.del["c"+c.id]);
+      Object.assign(S,{tx:d.tx.map(t=>({...t,m:n})),cats:d.cats||S.cats,budgets:d.budgets||{},cur:d.cur||S.cur,name:d.name||S.name,bts:n,sts:n});saveQuiet();render()})
+  }catch(e){gaMsg(e.message||"Couldn't read the backup.")}}
+function gSignOut(){
+  try{if(gTok&&window.google)google.accounts.oauth2.revoke(gTok,()=>{})}catch(e){}
+  gTok=null;gExp=0;delete S.gEmail;delete S.gSheetId;delete S.gLast;save(1);openGApi(1);render()}
+function openGApi(keep){
+  const on=!!S.gEmail,needId=!G_CLIENT_ID&&!localStorage.getItem("cc-gcid");
+  $("mc").innerHTML=`<h3 style="margin:0 0 8px">Google sign-in backup</h3>`+
+  (on?`<p class="mute" style="margin:0 0 4px;font-size:.85rem">Signed in as</p><p style="margin:0 0 10px;font-weight:700;word-break:break-all">${esc(S.gEmail)}</p><p class="mute" style="font-size:.8rem;margin:0 0 10px">Your backup lives in its own Google Sheet in this account. It is separate from your Spendly login.</p><label style="display:flex;gap:10px;align-items:center;margin-top:6px;font-size:.9rem"><input id="gaa" type="checkbox" style="width:auto;border:0" ${S.gAuto!==false?"checked":""}>Auto-backup after every change</label>`
+  :`<p class="mute" style="margin:0 0 10px;font-size:.85rem">Sign in with your Google account. Spendly creates a separate Google Sheet there and keeps your backup in it. Next time, signing in with the same Google account reconnects to the same sheet.</p>`+(needId?`<input id="gid" placeholder="Google OAuth Client ID (one-time setup)" aria-label="Google Client ID" style="margin-bottom:8px">`:""))+
+  `<p class="mute" id="gam" style="font-size:.85rem;margin:10px 0 0;min-height:1.2em">${S.gLast?"Last backup: "+esc(new Date(S.gLast).toLocaleString()):""}</p>`+
+  (on?`<div class="acts2"><button type="button" class="btn2" id="gb">Back up now</button><button type="button" class="btn2 alt" id="gr">Restore</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gc">Close</button><button type="button" class="btn2 alt" id="gd">Sign out</button></div>`
+  :`<div class="acts2"><button type="button" class="btn2" id="gi">Sign in with Google</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gc">Close</button></div>`);
+  $("md").hidden=false;
+  $("gc").onclick=()=>{if($("gaa")){S.gAuto=$("gaa").checked;save(1)}$("md").hidden=true;render()};
+  if(on){
+    $("gb").onclick=()=>{S.gAuto=$("gaa").checked;save(1);gBackup(0)};
+    $("gr").onclick=()=>{S.gAuto=$("gaa").checked;save(1);gRestore()};
+    $("gd").onclick=gSignOut;
+  }else{
+    $("gi").onclick=async()=>{
+      try{if($("gid")){const v=$("gid").value.trim();if(!v){gaMsg("Enter your Google Client ID first.");return}localStorage.setItem("cc-gcid",v)}
+        await gSignIn();gaMsg("");const id=await gSheetFor(false);openGApi(1);
+        gaMsg(id?"Connected to your existing backup sheet.":"Signed in. Press Back up now to create your sheet.");render()
+      }catch(e){gaMsg(e.message||"Sign-in failed.")}}}}
 $("fab").onclick=()=>openTx(null);
 gate();
 document.addEventListener("keydown",e=>{
