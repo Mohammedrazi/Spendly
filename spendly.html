@@ -149,6 +149,20 @@ h1{font-size:2.1rem;margin:28px 4px 14px;color:var(--pri)}
   .months button:hover:not(.on){color:#fff}
 }
 
+.scanb{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:2px dashed var(--pri);border-radius:18px;color:var(--pri);font-weight:700}
+.scm{margin:8px 4px 0;font-size:.85rem;color:var(--mute);min-height:1.2em}
+</style>
+<style>
+input[type=date]{color-scheme:dark}
+.ar{display:flex;gap:12px;margin-bottom:10px}.ar label{flex:1;min-width:0;color:var(--mute);font-size:.8rem}
+.ar select{display:block;width:100%;font:inherit;color:var(--ink);background:#1b1c20;border:2px solid var(--line);border-radius:12px;padding:10px;margin-top:4px}
+.ak{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}.ak>div{background:var(--card);border-radius:18px;padding:14px}.ak small{display:block;color:var(--mute);font-size:.78rem}.ak b{font-size:1.15rem;display:block;margin-top:2px;word-break:break-word}
+.anh{margin:20px 0 8px;font-size:1rem;color:var(--pri);font-weight:700}
+.cb{display:block;width:100%;text-align:left;padding:8px 0}.cb .r1{display:flex;align-items:center;gap:10px}.cb .r1 span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cb .pg{margin-top:6px;height:8px}
+.sc{overflow-x:auto;padding-bottom:4px}
+.wd{display:flex;gap:6px;height:120px}.wd>div{flex:1;text-align:center;font-size:.7rem;color:var(--mute);display:flex;flex-direction:column;justify-content:flex-end}.wd i{display:block;background:var(--red);border-radius:6px 6px 0 0;min-height:2px;margin-bottom:4px}
+.anb{display:flex;gap:10px;margin:16px 0 0}.anb button{flex:1;padding:12px;border-radius:14px;background:#2a2c33;color:var(--ink);font-weight:700}
+.up{color:var(--red)}.dn{color:var(--grn)}
 </style>
 </head>
 <body>
@@ -167,8 +181,10 @@ h1{font-size:2.1rem;margin:28px 4px 14px;color:var(--pri)}
 <nav class="pill" id="nav"></nav></div>
 <div class="mdl" id="md" hidden><div class="mc" id="mc" role="dialog" aria-modal="true"></div></div>
 <div class="page" id="cal" hidden></div>
+<div class="page" id="ana" hidden></div>
 <div class="page" id="sheet" hidden></div><div class="page top" id="sheet2" hidden></div>
 <input type="file" id="file" accept=".csv" hidden>
+<input type="file" id="invf" accept="image/*" capture="environment" hidden>
 
 <script>
 
@@ -326,7 +342,7 @@ function chart(){
 
 /* ---- screens ---- */
 function render(){
-  const v=$("view");v.className="wrap t-"+tab;if(!$("cal").hidden)drawCal();
+  const v=$("view");v.className="wrap t-"+tab;if(!$("cal").hidden)drawCal();if(!$("ana").hidden)drawAna();
   $("nav").innerHTML=[["home","🏠","Home"],["tx","🧾","Activity"],["bud","📊","Budgets"],["sum","📈","Summary"],["more","⋯","More"]].map(([k,i,l])=>`<button data-t="${k}" class="${tab===k?"on":""}"><b>${i}</b>${l}</button>`).join("");
   $("fab").hidden=tab==="more";
   if(tab==="home"){
@@ -350,6 +366,7 @@ function render(){
     v.innerHTML=`<h1>More</h1><div class="opts">
     <button class="opt" data-a="name">👤<div><b>Your name</b><span>${esc(S.name)}</span></div></button>
     <button class="opt" data-a="cal">📅<div><b>Calendar</b><span>See spending day by day</span></div></button>
+    <button class="opt" data-a="ana">📉<div><b>Analytics</b><span>Charts, filters and trends</span></div></button>
     <button class="opt" data-a="cats">🗂️<div><b>Categories</b><span>Add, view and delete categories</span></div></button>
     <button class="opt" data-a="cur">💱<div><b>Currency</b><span>Currently ${esc(S.cur)}</span></div></button>
     <button class="opt" data-a="sync">🔄<div><b>Cloud sync</b><span>${esc(syncText())}</span></div></button>
@@ -370,6 +387,7 @@ function drawForm(){
   $("sheet").innerHTML=`<div class="ph"><button data-x="close" aria-label="Back">‹</button><b>${f.edit?"Edit":"Add"} Transaction</b></div>
   <div class="tabs"><button data-ty="e" class="${f.type==="e"?"on":""}"><span class="red">▾</span> Expense</button><button data-ty="i" class="${f.type==="i"?"on":""}"><span class="grn">▴</span> Income</button></div>
   <div class="amt"><span>${esc(S.cur)}</span><input data-f="amt" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value="${f.amt}" aria-label="Amount"></div>
+  <div class="f"><button type="button" class="scanb" data-x="scan">📷 Scan invoice</button><p class="scm" id="scm">${esc(f._msg||"")}</p></div>
   <div class="row2"><input data-f="date" type="date" value="${f.date}" aria-label="Date"><input data-f="time" type="time" value="${f.time}" aria-label="Time"></div>
   <div class="f"><input data-f="title" placeholder="Title (optional)" value="${esc(f.title)}"></div>
   <div class="grid">${cats.map(c=>`<button data-c="${c.id}" class="${f.cat===c.id?"sel":""}"><i style="background:${c.color}">${c.icon}</i>${esc(c.name)}</button>`).join("")}<button class="add" data-x="newcat"><i>+</i>New</button></div>
@@ -381,6 +399,7 @@ $("sheet").addEventListener("click",e=>{
   if(d.ty){form.type=d.ty;form.cat=first(d.ty);drawForm()}
   else if(d.c){form.cat=d.c;drawForm()}
   else if(d.x==="close")$("sheet").hidden=true;
+  else if(d.x==="scan")$("invf").click();
   else if(d.x==="newcat")openCat();
   else if(d.x==="del"){S.del["t"+form.id]=Date.now();S.tx=S.tx.filter(t=>t.id!==form.id);save();$("sheet").hidden=true;render()}
   else if(d.x==="save"){
@@ -483,6 +502,7 @@ document.addEventListener("click",e=>{
   else if(d.st){sumT=d.st;render()}
   else if(d.a==="name")ask("Your name",{value:S.name,ok:"Save name"},v=>{if(v&&v.trim()){S.name=v.trim();S.sts=Date.now();save();render()}});
   else if(d.a==="cal")openCal();
+  else if(d.a==="ana")openAna();
   else if(d.x==="calclose")$("cal").hidden=true;
   else if(d.cd){cs=d.cd;drawCal()}
   else if(d.cm){const [y,m]=d.cm.split("-");cm={y:+y,m:+m};const t=today();cs=t.startsWith(cm.y+"-"+p2(cm.m+1))?t:cm.y+"-"+p2(cm.m+1)+"-01";drawCal()}
@@ -606,6 +626,23 @@ async function gRestore(){
 function gSignOut(){
   try{if(gTok&&window.google)google.accounts.oauth2.revoke(gTok,()=>{})}catch(e){}
   gTok=null;gExp=0;delete S.gEmail;delete S.gSheetId;delete S.gLast;save(1);openGApi(1);render()}
+function openGGuide(){
+  const o=location.origin&&location.origin!=="null"?location.origin:"(open the app from its https:// address first)";
+  const steps=[
+   ["Open Google Cloud Console","Go to <a href=\"https://console.cloud.google.com/\" target=\"_blank\" rel=\"noopener\" style=\"color:#aab8f5;text-decoration:underline\">console.cloud.google.com</a> and sign in with the Google account you want to use for backups."],
+   ["Create a project","Open <a href=\"https://console.cloud.google.com/projectcreate\" target=\"_blank\" rel=\"noopener\" style=\"color:#aab8f5;text-decoration:underline\">Create project</a> (or tap the project picker, then <b>New Project</b>), name it <b>Spendly</b> and tap <b>Create</b>. Make sure it is selected."],
+   ["Turn on two APIs","Open <a href=\"https://console.cloud.google.com/apis/library/sheets.googleapis.com\" target=\"_blank\" rel=\"noopener\" style=\"color:#aab8f5;text-decoration:underline\">Google Sheets API</a> and tap <b>Enable</b>. Then open <a href=\"https://console.cloud.google.com/apis/library/drive.googleapis.com\" target=\"_blank\" rel=\"noopener\" style=\"color:#aab8f5;text-decoration:underline\">Google Drive API</a> and tap <b>Enable</b>."],
+   ["Set up the consent screen","Open <a href=\"https://console.cloud.google.com/auth/overview\" target=\"_blank\" rel=\"noopener\" style=\"color:#aab8f5;text-decoration:underline\">Google Auth Platform</a> and tap <b>Get started</b>. App name: <b>Spendly</b>. Support and contact email: your Gmail. Audience: <b>External</b>. Accept and tap <b>Create</b>."],
+   ["Add yourself as a test user","Open <a href=\"https://console.cloud.google.com/auth/audience\" target=\"_blank\" rel=\"noopener\" style=\"color:#aab8f5;text-decoration:underline\">Audience</a> and under <b>Test users</b> tap <b>Add users</b>, and enter the Gmail you will sign in with. Save. Only listed accounts can sign in while the app is in Testing."],
+   ["Create the Client ID","Open <a href=\"https://console.cloud.google.com/auth/clients\" target=\"_blank\" rel=\"noopener\" style=\"color:#aab8f5;text-decoration:underline\">Clients</a> and tap <b>Create client</b>. Type: <b>Web application</b>. Under <b>Authorized JavaScript origins</b> tap <b>Add URI</b> and enter exactly:<br><code id=\"gor\" style=\"display:block;margin:6px 0;padding:8px;border-radius:8px;background:#2a2c33;word-break:break-all\">"+esc(o)+"</code>No path and no trailing slash. Tap <b>Create</b>."],
+   ["Copy the Client ID","Copy the ID that looks like <b>123456-abc.apps.googleusercontent.com</b>."],
+   ["Paste it in Spendly","Go back, paste it into the Client ID box, tap <b>Sign in with Google</b>, choose your account, then tap <b>Back up now</b>. If Google warns the app is not verified, tap <b>Advanced → Go to Spendly</b>."]];
+  $("mc").style.maxHeight="85vh";$("mc").style.overflow="auto";
+  $("mc").innerHTML=`<h3 style="margin:0 0 8px">Get your Google Client ID</h3><p class="mute" style="margin:0 0 10px;font-size:.85rem">One-time setup, about 5 minutes and free. Each person who wants their own Google backup follows these steps with their own Google account. Tap the blue links to open each page.</p><ol style="margin:0;padding-left:20px;font-size:.88rem;line-height:1.45">${steps.map(x=>`<li style="margin-bottom:10px"><b>${x[0]}.</b> ${x[1]}</li>`).join("")}</ol><p class="mute" style="font-size:.8rem;margin:6px 0 0">Tip: if you see Error 403 access_denied, add your Gmail under Test users (step 5). If you see Error 400 or origin_mismatch, the address in step 6 does not match the address bar. If a Sheets or Drive API error appears, repeat step 3 and wait 2 minutes.</p><div class="acts2"><button type="button" class="btn2 alt" id="gcp">Copy app address</button><button type="button" class="btn2" id="gbk">Back</button></div>`;
+  $("md").hidden=false;
+  const back=()=>{$("mc").style.maxHeight="";$("mc").style.overflow="";openGApi(1)};
+  $("gbk").onclick=back;
+  $("gcp").onclick=async()=>{try{await navigator.clipboard.writeText(o);$("gcp").textContent="Copied"}catch(e){$("gcp").textContent="Copy failed"}}}
 function openGApi(keep){
   const on=!!S.gEmail,needId=!G_CLIENT_ID&&!localStorage.getItem("cc-gcid");
   $("mc").innerHTML=`<h3 style="margin:0 0 8px">Google sign-in backup</h3>`+
@@ -613,25 +650,176 @@ function openGApi(keep){
   :`<p class="mute" style="margin:0 0 10px;font-size:.85rem">Sign in with your Google account. Spendly creates a separate Google Sheet there and keeps your backup in it. Next time, signing in with the same Google account reconnects to the same sheet.</p>`+(needId?`<input id="gid" placeholder="Google OAuth Client ID (one-time setup)" aria-label="Google Client ID" style="margin-bottom:8px">`:""))+
   `<p class="mute" id="gam" style="font-size:.85rem;margin:10px 0 0;min-height:1.2em">${S.gLast?"Last backup: "+esc(new Date(S.gLast).toLocaleString()):""}</p>`+
   (on?`<div class="acts2"><button type="button" class="btn2" id="gb">Back up now</button><button type="button" class="btn2 alt" id="gr">Restore</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gc">Close</button><button type="button" class="btn2 alt" id="gd">Sign out</button></div>`
-  :`<div class="acts2"><button type="button" class="btn2" id="gi">Sign in with Google</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gc">Close</button></div>`);
+  :`<div class="acts2"><button type="button" class="btn2" id="gi">Sign in with Google</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gh">Setup guide: get your Client ID</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gc">Close</button></div>`);
   $("md").hidden=false;
-  $("gc").onclick=()=>{if($("gaa")){S.gAuto=$("gaa").checked;save(1)}$("md").hidden=true;render()};
+  $("gc").onclick=()=>{$("mc").style.maxHeight="";$("mc").style.overflow="";if($("gaa")){S.gAuto=$("gaa").checked;save(1)}$("md").hidden=true;render()};
   if(on){
     $("gb").onclick=()=>{S.gAuto=$("gaa").checked;save(1);gBackup(0)};
     $("gr").onclick=()=>{S.gAuto=$("gaa").checked;save(1);gRestore()};
     $("gd").onclick=gSignOut;
   }else{
+    $("gh").onclick=openGGuide;
     $("gi").onclick=async()=>{
       try{if($("gid")){const v=$("gid").value.trim();if(!v){gaMsg("Enter your Google Client ID first.");return}localStorage.setItem("cc-gcid",v)}
         await gSignIn();gaMsg("");const id=await gSheetFor(false);openGApi(1);
         gaMsg(id?"Connected to your existing backup sheet.":"Signed in. Press Back up now to create your sheet.");render()
       }catch(e){gaMsg(e.message||"Sign-in failed.")}}}}
+/* ---- Analytics page: filters, totals, category split, trend, weekday pattern ---- */
+const AF0=()=>({per:"m0",type:"e",cat:"",q:"",from:"",to:"",min:"",max:"",all:false});
+let af=AF0();
+const PERS=[["w","7 days"],["m0","This month"],["m1","Last month"],["m3","3 months"],["m6","6 months"],["y0","This year"],["all","All time"],["c","Custom"]];
+const addD=(s,n)=>{const d=new Date(s+"T00:00");d.setDate(d.getDate()+n);return dstr(d)};
+function anaRange(per){const n=new Date(),y=n.getFullYear(),m=n.getMonth();let a=null,b=null;
+  if(per==="w"){a=new Date(y,m,n.getDate()-6);b=n}
+  else if(per==="m0"){a=new Date(y,m,1);b=new Date(y,m+1,0)}
+  else if(per==="m1"){a=new Date(y,m-1,1);b=new Date(y,m,0)}
+  else if(per==="m3"){a=new Date(y,m-2,1);b=new Date(y,m+1,0)}
+  else if(per==="m6"){a=new Date(y,m-5,1);b=new Date(y,m+1,0)}
+  else if(per==="y0"){a=new Date(y,0,1);b=new Date(y,11,31)}
+  else if(per==="c"){a=af.from?new Date(af.from+"T00:00"):null;b=af.to?new Date(af.to+"T00:00"):null}
+  return [a?dstr(a):"",b?dstr(b):""]}
+function anaMatch(t,r){
+  if(r[0]&&t.date<r[0])return false;if(r[1]&&t.date>r[1])return false;
+  if(af.type!=="b"&&t.type!==af.type)return false;if(af.cat&&t.cat!==af.cat)return false;
+  if(af.min!==""&&t.amt<+af.min)return false;if(af.max!==""&&t.amt>+af.max)return false;
+  if(af.q){const q=af.q.toLowerCase();if(!((t.title||"").toLowerCase().includes(q)||catOf(t.cat).name.toLowerCase().includes(q)))return false}
+  return true}
+const sumBy=(l,ty)=>l.filter(t=>t.type===ty).reduce((x,t)=>x+t.amt,0);
+function spanDays(a,b,l){if(!a&&l.length)a=l.reduce((m,t)=>t.date<m?t.date:m,l[0].date);if(!a)return 1;if(!b)b=today();
+  return Math.max(1,Math.round((new Date(b+"T00:00")-new Date(a+"T00:00"))/864e5)+1)}
+function openAna(){
+  $("ana").innerHTML=`<div class="ph"><button data-x="anaclose" aria-label="Back">‹</button><b>Analytics</b></div><div class="f" id="anf"></div><div class="f" id="anr"></div>`;
+  drawAnaShell();drawAna();$("ana").hidden=false}
+function drawAnaShell(){
+  const lbl={e:"Expenses",i:"Income",b:"Both"};
+  $("anf").innerHTML=`<div class="months">${PERS.map(([k,l])=>`<button data-per="${k}" class="${af.per===k?"on":""}">${l}</button>`).join("")}</div>`+
+  (af.per==="c"?`<div class="ar"><label>From<input type="date" id="afr" value="${esc(af.from)}"></label><label>To<input type="date" id="ato" value="${esc(af.to)}"></label></div>`:"")+
+  `<div class="seg3" style="margin:0 0 12px">${["e","i","b"].map(k=>`<button data-ty="${k}" class="${af.type===k?"on":""}">${lbl[k]}</button>`).join("")}</div>`+
+  `<div class="ar"><label>Category<select id="ac"><option value="">All categories</option>${S.cats.map(c=>`<option value="${esc(c.id)}"${af.cat===c.id?" selected":""}>${esc(c.icon+" "+c.name)}</option>`).join("")}</select></label></div>`+
+  `<div class="ar"><label>Min amount<input id="amin" type="number" inputmode="decimal" min="0" value="${esc(af.min)}"></label><label>Max amount<input id="amax" type="number" inputmode="decimal" min="0" value="${esc(af.max)}"></label></div>`+
+  `<input id="aq" placeholder="Search title or category" value="${esc(af.q)}" aria-label="Search">`}
+function anaTrend(L,r,eb){
+  let a=r[0]||(L.length?L.reduce((m,t)=>t.date<m?t.date:m,L[0].date):"");if(!a||!L.length)return "";
+  const le=L.reduce((m,t)=>t.date>m?t.date:m,L[0].date);if(le>eb)eb=le;
+  const days=spanDays(a,eb,L),mo=days>62,bk=[],map={};
+  if(!mo){for(let k=0;k<days;k++){const d=addD(a,k),o={l:String(+d.slice(8)),t:d,e:0,i:0};bk.push(o);map[d]=o}}
+  else{let y=+a.slice(0,4),m=+a.slice(5,7)-1;const ey=+eb.slice(0,4),em=+eb.slice(5,7)-1;
+    while(y<ey||(y===ey&&m<=em)){const k=y+"-"+p2(m+1),o={l:new Date(y,m,1).toLocaleDateString(undefined,{month:"short"}),t:k,e:0,i:0};bk.push(o);map[k]=o;m++;if(m>11){m=0;y++}}}
+  L.forEach(t=>{const o=map[mo?t.date.slice(0,7):t.date];if(o)o[t.type]+=t.amt});
+  const show=af.type==="b"?["e","i"]:[af.type],mx=Math.max(1,...bk.flatMap(o=>show.map(k=>o[k])));
+  const sw=mo?46:(bk.length<=16?30:18),H=130,W=bk.length*sw+8;let g="";
+  bk.forEach((o,ix)=>{const x=4+ix*sw,bw=(sw-6)/show.length;
+    show.forEach((k,j)=>{const h=Math.round(o[k]/mx*H);if(o[k]>0)g+=`<rect x="${x+j*bw}" y="${H-h}" width="${bw}" height="${h}" rx="3" style="fill:var(--${k==="e"?"red":"grn"})"><title>${o.t}: ${money(o[k])}</title></rect>`});
+    if(mo||bk.length<=16||ix%5===0)g+=`<text x="${x+(sw-6)/2}" y="${H+16}" text-anchor="middle" style="fill:var(--mute);font-size:10px">${o.l}</text>`});
+  return `<div class="anh">${mo?"Monthly":"Daily"} trend</div><div class="sc"><svg width="${W}" height="${H+22}" viewBox="0 0 ${W} ${H+22}" role="img" aria-label="Trend chart">${g}</svg></div><div class="mute" style="font-size:.75rem">Tallest bar: ${money(mx)}${af.type==="b"?" · red = expense, green = income":""}</div>`}
+function anaRow(t){const c=catOf(t.cat);
+  return `<button class="tx" data-tx="${t.id}"><i class="ci" style="background:${c.color}">${c.icon}</i><div class="g"><b>${esc(t.title||c.name)}</b><span class="mute" style="font-size:.8rem">${esc(t.date)} ${esc(t.time||"")} · ${esc(c.name)}</span></div><span class="a ${t.type==="e"?"red":"grn"}">${t.type==="e"?"-":"+"}${cf(t.amt)}</span></button>`}
+function drawAna(){
+  if(!$("anr"))return;
+  const r=anaRange(af.per),td=today(),eb=!r[1]||r[1]>td?td:r[1];
+  const L=S.tx.filter(t=>anaMatch(t,r)),key=af.type==="i"?"i":"e",kn=key==="e"?"Spent":"Earned";
+  const e=sumBy(L,"e"),i=sumBy(L,"i"),cur=key==="e"?e:i,days=spanDays(r[0],eb,L);
+  let cmp="";
+  if(r[0]&&r[0]<=td){const pb=addD(r[0],-1),pa=addD(pb,-(days-1)),pv=sumBy(S.tx.filter(t=>anaMatch(t,[pa,pb])),key);
+    if(pv>0){const pc=(cur-pv)/pv*100,up=pc>0,bad=key==="e"?up:!up;
+      cmp=`<div class="mute" style="margin-top:10px;font-size:.85rem"><span class="${bad?"up":"dn"}">${up?"▲":"▼"} ${Math.abs(pc).toFixed(0)}%</span> vs the previous ${days} day${days>1?"s":""} (${money(pv)})</div>`}}
+  let h=`<div class="ak"><div><small>Expenses</small><b class="red">${money(e)}</b></div><div><small>Income</small><b class="grn">${money(i)}</b></div><div><small>Net</small><b class="${i-e<0?"red":"grn"}">${money(i-e)}</b></div><div><small>${kn} per day</small><b>${money(cur/days)}</b></div><div><small>Transactions</small><b>${L.length}</b></div><div><small>Average transaction</small><b>${money(L.length?(af.type==="b"?(e+i):cur)/L.length:0)}</b></div></div>${cmp}`;
+  if(!L.length){h+=`<p class="mute" style="text-align:center;margin:28px 0">No transactions match these filters.</p>`}
+  else{
+    const bt={};L.filter(t=>t.type===key).forEach(t=>bt[t.cat]=(bt[t.cat]||0)+t.amt);
+    const ents=Object.entries(bt).sort((a,b)=>b[1]-a[1]);
+    if(ents.length)h+=`<div class="anh">${key==="e"?"Spending":"Income"} by category</div>`+ents.map(([id,v])=>{const c=catOf(id),pc=cur?v/cur*100:0;
+      return `<button class="cb" data-cat="${esc(id)}"><div class="r1"><i class="ci" style="background:${c.color};width:38px;height:38px;font-size:1.1rem">${c.icon}</i><span>${esc(c.name)}</span><b>${money(v)}</b><small class="mute">${pc.toFixed(0)}%</small></div><div class="pg"><i style="width:${pc.toFixed(1)}%;background:${c.color}"></i></div></button>`}).join("");
+    h+=anaTrend(L,r,eb);
+    const wd=[0,0,0,0,0,0,0];L.filter(t=>t.type===key).forEach(t=>wd[new Date(t.date+"T00:00").getDay()]+=t.amt);
+    const wm=Math.max(1,...wd),nm=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    h+=`<div class="anh">${kn} by weekday</div><div class="wd">${wd.map((v,k)=>`<div title="${nm[k]}: ${money(v)}"><i style="height:${Math.round(v/wm*90)}px${key==="i"?";background:var(--grn)":""}"></i>${nm[k]}<br>${cf(v)}</div>`).join("")}</div>`;
+    const top=L.filter(t=>t.type===key).sort((a,b)=>b.amt-a.amt).slice(0,5);
+    if(top.length)h+=`<div class="anh">Largest ${key==="e"?"expenses":"income"}</div>`+top.map(anaRow).join("");
+    const lst=sorted(L),shown=af.all?lst:lst.slice(0,30);
+    h+=`<div class="anh">Matching transactions (${L.length})</div>`+shown.map(anaRow).join("")+(lst.length>30?`<button class="btn2 alt" data-more="1" style="width:100%;margin-top:8px">${af.all?"Show fewer":"Show all "+lst.length}</button>`:"")}
+  h+=`<div class="anb"><button data-rs="1">Reset filters</button><button data-ex="1">Export filtered CSV</button></div>`;
+  $("anr").innerHTML=h}
+function anaExport(){
+  const r=anaRange(af.per),L=sorted(S.tx.filter(t=>anaMatch(t,r))),q=x=>'"'+String(x).replace(/"/g,'""')+'"';
+  const csv="date,time,type,category,amount,title\n"+L.map(t=>[t.date,t.time,t.type==="e"?"expense":"income",q(catOf(t.cat).name),t.amt,q(t.title||"")].join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="spendly-analytics.csv";a.click()}
+$("ana").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;const d=b.dataset;
+  if(d.x==="anaclose"){$("ana").hidden=true;render()}
+  else if(d.per){af.per=d.per;drawAnaShell();drawAna()}
+  else if(d.ty){af.type=d.ty;drawAnaShell();drawAna()}
+  else if(d.cat){af.cat=d.cat;drawAnaShell();drawAna();$("ana").scrollTop=0}
+  else if(d.more){af.all=!af.all;drawAna()}
+  else if(d.rs){af=AF0();drawAnaShell();drawAna()}
+  else if(d.ex)anaExport()
+  else if(d.tx)openTx(+d.tx)});
+$("ana").addEventListener("input",e=>{const id=e.target.id;
+  if(id==="aq")af.q=e.target.value.trim();else if(id==="amin")af.min=e.target.value;else if(id==="amax")af.max=e.target.value;else return;
+  af.all=false;drawAna()});
+$("ana").addEventListener("change",e=>{const id=e.target.id;
+  if(id==="ac")af.cat=e.target.value;else if(id==="afr")af.from=e.target.value;else if(id==="ato")af.to=e.target.value;else return;
+  af.all=false;drawAna()});
+
+/* ---- invoice scan (OCR, runs in the browser) ---- */
+let ocrP=null,scanning=false;
+function loadOCR(){return window.Tesseract?Promise.resolve():ocrP||(ocrP=new Promise((res,rej)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";s.onload=res;s.onerror=()=>{ocrP=null;rej(new Error("offline"))};document.head.appendChild(s)}))}
+function prepImg(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),i=new Image();
+  i.onload=()=>{const m=Math.min(1,1800/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=Math.round(i.width*m);c.height=Math.round(i.height*m);
+    const x=c.getContext("2d");x.filter="grayscale(1) contrast(1.3)";x.drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(new Error("img")),"image/png")};
+  i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error("img"))};i.src=u})}
+function numOf(s){s=s.replace(/\s/g,"");if(/,\d{1,2}$/.test(s)&&s.indexOf(".")<0)s=s.replace(",",".");else s=s.replace(/,/g,"");const n=parseFloat(s);return isFinite(n)?n:NaN}
+function amountsIn(l){return(l.match(/\d[\d.,]*\d|\d/g)||[]).map(numOf).filter(n=>n>0&&n<1e7)}
+function findTotal(text){
+  const L=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const strong=/grand\s*total|total\s*(amount|due|payable|to\s*pay)|amount\s*(due|payable)|net\s*(total|amount|payable)|balance\s*due|إجمالي|الإجمالي|الاجمالي|المجموع/i,
+        weak=/total|amount|المبلغ/i,
+        skip=/sub\s*-?\s*total|discount|change|tendered|cash\b|paid|saving|qty|items?\b/i,
+        tax=/\b(vat|tax|gst)\b/i;
+  let best=0,cand=[];
+  L.forEach((l,i)=>{
+    if(skip.test(l)||(tax.test(l)&&!/incl|inc\b|with/i.test(l)))return;
+    const sc=strong.test(l)?3:weak.test(l)?1:0;if(!sc)return;
+    let a=amountsIn(l);if(!a.length&&L[i+1]&&!skip.test(L[i+1]))a=amountsIn(L[i+1]);
+    if(a.length)cand.push({sc,v:Math.max(...a)})});
+  if(cand.length){best=Math.max(...cand.map(c=>c.sc));return Math.max(...cand.filter(c=>c.sc===best).map(c=>c.v))}
+  const dec=(text.match(/\d[\d,]*[.,]\d{2}\b/g)||[]).map(numOf).filter(n=>n>0&&n<1e7);
+  return dec.length?Math.max(...dec):0}
+function okDate(y,m,d){const t=new Date(y,m-1,d);if(t.getFullYear()!==y||t.getMonth()!==m-1||t.getDate()!==d)return null;
+  if(t.getTime()>Date.now()+864e5)return null;return y+"-"+p2(m)+"-"+p2(d)}
+const MON="jan feb mar apr may jun jul aug sep oct nov dec".split(" ");
+function findDate(t){let m;
+  if(m=t.match(/\b(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/)){const r=okDate(+m[1],+m[2],+m[3]);if(r)return r}
+  if(m=t.match(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2}|\d{2})\b/)){let y=+m[3],a=+m[1],b=+m[2];if(y<100)y+=2000;if(b>12&&a<=12){const x=a;a=b;b=x}const r=okDate(y,b,a);if(r)return r}
+  if(m=t.match(/\b(\d{1,2})[\s-]*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,.-]*(20\d{2})\b/i)){const r=okDate(+m[3],MON.indexOf(m[2].toLowerCase())+1,+m[1]);if(r)return r}
+  return null}
+function findTitle(t){for(const l of t.split(/\r?\n/)){const x=l.replace(/[^A-Za-z0-9 &'.\-]/g," ").replace(/\s+/g," ").trim();
+  if((x.match(/[A-Za-z]/g)||[]).length>=3&&x.length<=40&&!/invoice|receipt|tax|bill|cash|www|http|tel|phone|date|order/i.test(x))return x}return""}
+const CATGUESS=[["cGroceries",/grocer|supermarket|hypermarket|mart\b|carrefour|lulu|spar\b/i],["cDining",/restaurant|cafe|coffee|kitchen|pizza|burger|grill|bakery/i],["cTransit",/fuel|petrol|diesel|woqod|taxi|metro/i],["cBillsFees",/ooredoo|vodafone|electric|water|kahramaa|internet|telecom/i]];
+function parseInvoice(text){const amt=findTotal(text),date=findDate(text),title=findTitle(text);let cat=null;
+  for(const[id,re]of CATGUESS)if(re.test(text)&&S.cats.some(c=>c.id===id&&c.type==="e")){cat=id;break}
+  return{amt,date,title,cat}}
+function scanMsg(t){const m=$("scm");if(m)m.textContent=t}
+$("invf").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f||scanning)return;scanning=true;
+  scanMsg("Preparing image…");
+  try{
+    scanMsg("Loading reader (first scan needs internet)…");await loadOCR();
+    const blob=await prepImg(f);
+    const r=await Tesseract.recognize(blob,"eng",{logger:m=>{if(m.status==="recognizing text")scanMsg("Reading invoice… "+Math.round(m.progress*100)+"%")}});
+    const p=parseInvoice(r.data.text||"");
+    if(p.amt>0){form.type="e";form.amt=p.amt.toFixed(2);if(p.date)form.date=p.date;if(!form.title&&p.title)form.title=p.title;if(p.cat)form.cat=p.cat;
+      form._msg="Found total "+money(p.amt)+". Please check it matches your invoice, then Save."}
+    else form._msg="Couldn't find a total. Try a clearer, well-lit photo, or type the amount.";
+    drawForm()
+  }catch(err){scanMsg(err&&err.message==="offline"?"Couldn't load the reader. Check your internet and try again.":"Couldn't read this image. Try another photo.")}
+  finally{scanning=false}});
 $("fab").onclick=()=>openTx(null);
 gate();
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape")return;
   if(!$("md").hidden){$("md").hidden=true;return}
-  for(const id of ["sheet2","sheet","cal"])if(!$(id).hidden){$(id).hidden=true;return}
+  for(const id of ["sheet2","sheet","ana","cal"])if(!$(id).hidden){$(id).hidden=true;return}
 });
 if(false)
   addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
