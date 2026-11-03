@@ -7,6 +7,13 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <meta name="description" content="Spendly - a simple personal budget tracker">
 <meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Spendly">
@@ -23,6 +30,7 @@ input:focus{border-color:var(--pri)}
 h1{font-size:2.1rem;margin:28px 4px 14px;color:var(--pri)}
 .hi{margin:28px 4px 0;font-size:1.5rem;font-weight:700}.hi+h1{margin-top:0;font-size:2.3rem}
 .sum{display:inline-block;border:2px solid var(--grn);background:var(--card);border-radius:22px;padding:14px 20px;margin:6px 0 14px}
+.sums{display:flex;flex-wrap:wrap;gap:12px;margin:6px 0 14px}.sums .sum{margin:0;min-width:150px;flex:1 1 150px}.sum.bal.neg{border-color:var(--red)}.sum.bal.neg .n{color:var(--red)}.sum small{display:block;color:var(--mute);font-size:.8rem;margin-top:2px}
 .sum b{font-size:1.3rem}.sum .n{color:var(--grn);font-size:1.4rem;font-weight:700;display:block}
 .panel{background:#1d1e22;border-radius:26px;padding:12px;margin-bottom:12px}
 .day{display:flex;justify-content:space-between;color:var(--mute);margin:14px 6px 4px;font-size:.95rem}
@@ -107,7 +115,7 @@ h1{font-size:2.1rem;margin:28px 4px 14px;color:var(--pri)}
     padding:12px 0 0;display:flex;flex-direction:column;background:#0b0c0f;
     border:2px solid var(--line);border-radius:28px;box-shadow:0 24px 70px rgba(0,0,0,.65)}
   /* dim the app behind any open dialog (sits between the app, z-index 5, and dialogs, z-index 20+) */
-  body:has(.page:not([hidden]))::after{content:"";position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:19}
+  body:has(.page:not([hidden]):not(.tabm))::after{content:"";position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:19}
   .page .save{position:sticky;left:auto;right:auto;bottom:0;max-width:none;margin:auto 0 0;padding:16px;background:#0b0c0f;border-radius:0 0 26px 26px}
   .page .months{margin-left:0;margin-right:0}
   .grid{grid-template-columns:repeat(6,1fr)}
@@ -151,6 +159,17 @@ h1{font-size:2.1rem;margin:28px 4px 14px;color:var(--pri)}
 
 .scanb{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:2px dashed var(--pri);border-radius:18px;color:var(--pri);font-weight:700}
 .scm{margin:8px 4px 0;font-size:.85rem;color:var(--mute);min-height:1.2em}
+
+/* Analytics as a bottom/side-nav tab: sits above the page, below the nav */
+.page.tabm{z-index:4;padding-bottom:130px}
+.page.tabm .ph{display:none}
+@media (min-width:700px){
+  .page.tabm{inset:0;top:0;bottom:0;margin:0 auto;width:min(960px,100%);border:0;border-radius:0;box-shadow:none;padding:24px 0 130px;display:block;background:var(--bg)}
+}
+@media (min-width:1100px){
+  .page.tabm{left:240px;right:0;width:auto;max-width:none;margin:0;padding:32px 44px 60px}
+  .page.tabm>*{max-width:960px;margin-left:auto;margin-right:auto}
+}
 </style>
 <style>
 input[type=date]{color-scheme:dark}
@@ -163,6 +182,26 @@ input[type=date]{color-scheme:dark}
 .wd{display:flex;gap:6px;height:120px}.wd>div{flex:1;text-align:center;font-size:.7rem;color:var(--mute);display:flex;flex-direction:column;justify-content:flex-end}.wd i{display:block;background:var(--red);border-radius:6px 6px 0 0;min-height:2px;margin-bottom:4px}
 .anb{display:flex;gap:10px;margin:16px 0 0}.anb button{flex:1;padding:12px;border-radius:14px;background:#2a2c33;color:var(--ink);font-weight:700}
 .up{color:var(--red)}.dn{color:var(--grn)}
+
+/* Phone: Summary / Calendar / Analytics live in a slide-out side menu */
+#drawer,#mbtn{display:none}
+@media (max-width:699px){
+  #mbtn{display:grid;place-items:center;position:fixed;z-index:6;left:10px;top:calc(10px + env(safe-area-inset-top,0px));width:42px;height:42px;border-radius:50%;background:#16171b;border:2px solid #2b2d33;font-size:1.3rem;color:#cfd6e6}
+  #mbtn.on{background:#475266;color:#fff}
+  .wrap{padding-top:calc(62px + env(safe-area-inset-top,0px))}
+  .wrap .hi{position:absolute;left:62px;right:16px;top:calc(10px + env(safe-area-inset-top,0px));margin:0;height:42px;line-height:42px;font-size:1.4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .page.tabm{padding-top:calc(62px + env(safe-area-inset-top,0px))}
+  #drawer{display:block;position:fixed;inset:0;z-index:40;visibility:hidden;transition:visibility 0s .25s}
+  #drawer.open{visibility:visible;transition:none}
+  .dbk{position:absolute;inset:0;width:100%;background:rgba(0,0,0,.6);opacity:0;transition:opacity .25s}
+  #drawer.open .dbk{opacity:1}
+  .dp{position:absolute;left:0;top:0;bottom:0;width:min(78vw,300px);background:#0b0c0f;border-right:2px solid var(--line);padding:calc(28px + env(safe-area-inset-top,0px)) 14px 14px;transform:translateX(-100%);transition:transform .25s}
+  #drawer.open .dp{transform:none}
+  .dp h3{margin:0 0 18px 10px;font-size:1.7rem;color:var(--pri)}
+  .dp button{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;margin-bottom:6px;border-radius:16px;font-size:1.05rem;text-align:left}
+  .dp button b{font-size:1.35rem;width:1.6em;text-align:center}
+  .dp button.on{background:#475266;color:#fff}
+}
 </style>
 </head>
 <body>
@@ -178,7 +217,9 @@ input[type=date]{color-scheme:dark}
 
 <div id="app" hidden><div class="wrap" id="view"></div>
 <button class="fab" id="fab" aria-label="Add transaction">+</button>
-<nav class="pill" id="nav"></nav></div>
+<nav class="pill" id="nav"></nav>
+<button id="mbtn" data-x="drawer" aria-label="Open side menu">☰</button>
+<div id="drawer"><button class="dbk" data-x="drawer" aria-label="Close menu"></button><aside class="dp"><h3>Spendly</h3><div id="dlist"></div></aside></div></div>
 <div class="mdl" id="md" hidden><div class="mc" id="mc" role="dialog" aria-modal="true"></div></div>
 <div class="page" id="cal" hidden></div>
 <div class="page" id="ana" hidden></div>
@@ -342,12 +383,19 @@ function chart(){
 
 /* ---- screens ---- */
 function render(){
-  const v=$("view");v.className="wrap t-"+tab;if(!$("cal").hidden)drawCal();if(!$("ana").hidden)drawAna();
-  $("nav").innerHTML=[["home","🏠","Home"],["tx","🧾","Activity"],["bud","📊","Budgets"],["sum","📈","Summary"],["more","⋯","More"]].map(([k,i,l])=>`<button data-t="${k}" class="${tab===k?"on":""}"><b>${i}</b>${l}</button>`).join("");
+  const v=$("view");v.className="wrap t-"+tab;{const cl=$("cal");if(tab==="cal"){if(cl.hidden||!cl.classList.contains("tabm"))openCal(true)}else if(cl.classList.contains("tabm")){cl.hidden=true;cl.classList.remove("tabm")}if(!cl.hidden)drawCal()}
+  {const an=$("ana");if(tab==="ana"){if(an.hidden||!an.classList.contains("tabm"))openAna(true)}else if(an.classList.contains("tabm")){an.hidden=true;an.classList.remove("tabm")}if(!an.hidden)drawAna()}
+  {const ph=matchMedia("(max-width:699px)").matches,side=[["sum","📈","Summary"],["cal","📅","Calendar"],["ana","📉","Analytics"]],
+    main=[["home","🏠","Home"],["tx","🧾","Activity"],["bud","📊","Budgets"]],more=["more","⋯","More"],btn=([k,i,l])=>`<button data-t="${k}" class="${tab===k?"on":""}"><b>${i}</b>${l}</button>`;
+  $("drawer").classList.remove("open");
+  if(ph){$("nav").innerHTML=main.map(btn).join("")+btn(more);
+    $("mbtn").classList.toggle("on",side.some(x=>x[0]===tab));
+    $("dlist").innerHTML=side.map(btn).join("")}
+  else $("nav").innerHTML=[...main,...side,more].map(btn).join("")}
   $("fab").hidden=tab==="more";
   if(tab==="home"){
-    const c=chart(),n=S.tx.filter(t=>t.type==="e"&&t.date>=c.from).length,h=now.getHours(),gr=h<5||h>=21?"night":h<12?"morning":h<18?"afternoon":"evening";
-    v.innerHTML=`<div class="dash"><div class="dl"><div class="hi">Good ${gr}${sy.busy&&getMeta().ver===undefined?" · syncing your data…":""}</div><h1><button data-a="name" aria-label="Edit name" style="font:inherit;color:inherit;text-align:left">${esc(S.name)} <span style="font-size:1rem;color:var(--mute)">✎</span></button></h1><div class="sum"><b>Expenses</b><span class="n">▴ ${money(c.total)}</span><span>${n} transactions</span></div><div class="panel">${c.svg}</div></div><div class="dr">${grouped(sorted(S.tx).slice(0,15))}</div></div>`;
+    const c=chart(),allE=S.tx.filter(t=>t.type==="e").reduce((a,t)=>a+t.amt,0),allI=S.tx.filter(t=>t.type==="i").reduce((a,t)=>a+t.amt,0),bal=allI-allE,n=S.tx.length,ne=S.tx.filter(t=>t.type==="e").length,h=now.getHours(),gr=h<5||h>=21?"night":h<12?"morning":h<18?"afternoon":"evening";
+    v.innerHTML=`<div class="dash"><div class="dl"><div class="hi">Good ${gr}${sy.busy&&getMeta().ver===undefined?" · syncing your data…":""}</div><h1><button data-a="name" aria-label="Edit name" style="font:inherit;color:inherit;text-align:left">${esc(S.name)} <span style="font-size:1rem;color:var(--mute)">✎</span></button></h1><div class="sums"><div class="sum"><b>Total expenses</b><span class="n">▾ ${money(allE)}</span><span>${n} transactions (${ne} expenses) · all months</span></div><div class="sum bal${bal<0?" neg":""}"><b>Balance</b><span class="n">${bal<0?"−":""}${money(Math.abs(bal))}</span><span>Income ${money(allI)}</span></div></div><div class="panel">${c.svg}</div></div><div class="dr">${grouped(sorted(S.tx).slice(0,15))}</div></div>`;
   }else if(tab==="tx"){
     const l=inMonth(),e=l.filter(t=>t.type==="e").reduce((a,t)=>a+t.amt,0),i=l.filter(t=>t.type==="i").reduce((a,t)=>a+t.amt,0);
     v.innerHTML=`<h1>Transactions</h1>${monthTabs()}<div class="bar3"><span class="red">▾ ${money(e)}</span><span class="grn">▴ ${money(i)}</span><span>= ${money(i-e)}</span></div>${grouped(l)}`;
@@ -362,6 +410,8 @@ function render(){
     S.tx.filter(t=>t.type===ty).forEach(t=>{by[t.cat]=(by[t.cat]||0)+t.amt;cn[t.cat]=(cn[t.cat]||0)+1;if(t.date.startsWith(mk))tm[t.cat]=(tm[t.cat]||0)+t.amt});
     const ids=Object.keys(by).sort((a,b)=>by[b]-by[a]),tot=ids.reduce((a,k)=>a+by[k],0),mx=by[ids[0]]||1;
     v.innerHTML=`<h1>Summary</h1><div class="tabs" style="margin:0 0 12px"><button data-st="e" class="${ty==="e"?"on":""}"><span class="red">▾</span> Expense</button><button data-st="i" class="${ty==="i"?"on":""}"><span class="grn">▴</span> Income</button></div><div class="sum" style="display:block"><b>Total ${ty==="e"?"spent":"earned"}</b><span class="n">${money(tot)}</span><span>${ids.length} categories</span></div>`+(ids.length?'<div class="cards">'+ids.map(k=>{const c=catOf(k);return `<button class="bud" data-s="${k}"><div style="display:flex;align-items:center;gap:12px"><i class="ci" style="background:${c.color};width:44px;height:44px;font-size:1.3rem">${c.icon}</i><div class="g"><b>${esc(c.name)}</b><span class="mute" style="font-size:.8rem">${cn[k]} transactions · this month ${money(tm[k]||0)}</span></div><b class="a">${money(by[k])}</b></div><div class="pg"><i style="width:${by[k]/mx*100}%"></i></div></button>`}).join("")+"</div>":'<div class="empty">Nothing to summarise yet.</div>');
+  }else if(tab==="ana"||tab==="cal"){
+    v.innerHTML="";
   }else{
     v.innerHTML=`<h1>More</h1><div class="opts">
     <button class="opt" data-a="name">👤<div><b>Your name</b><span>${esc(S.name)}</span></div></button>
@@ -412,14 +462,15 @@ $("sheet").addEventListener("click",e=>{
 const EMO="🍔 ☕ 🏠 🚌 ⛽ 💊 🎓 🐶 🎬 🎵 📱 👕 💻 🏥 ✈️ 🏋️ 🧾 🎯 🍕 🛠️ 🧴 🎮 📚 💡 💸 🏦 🎨 🧒".split(" ");
 const COLS=["#6a82a3","#7db87a","#4f9f95","#5bbdd6","#5a9fe8","#6a5acd","#c27ba0","#e07a5f","#d9a441","#a39a35"];
 function openCat(){cform={type:form.type,name:"",icon:"📁",color:COLS[0]};drawCat();$("sheet2").hidden=false}
-function drawCat(){const c=cform;
-  $("sheet2").innerHTML=`<div class="ph"><button data-x="back" aria-label="Back">‹</button><b>Add Category</b></div>
+function drawCat(){const c=cform,isEdit=!!c.id;
+  $("sheet2").innerHTML=`<div class="ph"><button data-x="back" aria-label="Back">‹</button><b>${isEdit?"Edit Category":"Add Category"}</b></div>
   <div class="tabs"><button data-ty="e" class="${c.type==="e"?"on":""}"><span class="red">▾</span> Expense</button><button data-ty="i" class="${c.type==="i"?"on":""}"><span class="grn">▴</span> Income</button></div>
   <div style="display:flex;align-items:center;gap:16px;padding:16px"><i class="ci" style="background:${c.color};width:76px;height:76px;font-size:2.4rem">${c.icon}</i><input id="cn" placeholder="Name" value="${esc(c.name)}" style="font-size:1.6rem" aria-label="Category name"></div>
+  ${isEdit?'<p class="mute" style="padding:0 16px 10px;font-size:.85rem">Renaming updates this category everywhere — all past and future transactions, scans, and months will show the new name.</p>':""}
   <div class="mute" style="padding:0 16px 8px">Icon</div><div class="emo">${EMO.map(e=>`<button data-i="${e}" class="${c.icon===e?"sel":""}">${e}</button>`).join("")}</div>
   <div class="f"><input id="ce" placeholder="Or type any emoji" maxlength="4" aria-label="Custom emoji"></div>
   <div class="mute" style="padding:8px 16px 0">Color</div><div class="cols">${COLS.map(k=>`<button data-k="${k}" style="background:${k}" class="${c.color===k?"sel":""}" aria-label="Color ${k}"></button>`).join("")}</div>
-  <div class="save"><button data-x="ok">Add category</button></div>`;
+  <div class="save"><button data-x="ok">${isEdit?"Save changes":"Add category"}</button></div>`;
   $("cn").oninput=e=>cform.name=e.target.value;
   $("ce").oninput=e=>{const v=e.target.value.trim();if(v){cform.icon=v;const el=$("sheet2").querySelector(".ci");el.textContent=v}};
 }
@@ -428,8 +479,13 @@ $("sheet2").addEventListener("click",e=>{
   if(d.ty){cform.type=d.ty;drawCat()}else if(d.i){cform.icon=d.i;drawCat()}else if(d.k){cform.color=d.k;drawCat()}
   else if(d.x==="back")$("sheet2").hidden=true;
   else if(d.x==="ok"){const n=(cform.name||"").trim();if(!n){$("cn").focus();return}
-    const c={id:"c"+Date.now(),name:n,icon:cform.icon,color:cform.color,type:cform.type};S.cats.push(c);save();
-    if(!$("sheet").hidden){form.type=c.type;form.cat=c.id;drawForm()}$("sheet2").hidden=true;if($("sheet").hidden)manageCats()}
+    if(cform.id){
+      S.cats=S.cats.map(x=>x.id===cform.id?{...x,name:n,icon:cform.icon,color:cform.color,type:cform.type}:x);
+    }else{
+      const c={id:"c"+Date.now(),name:n,icon:cform.icon,color:cform.color,type:cform.type};S.cats.push(c);
+      if(form){form.type=c.type;form.cat=c.id;drawForm()}
+    }
+    save();$("sheet2").hidden=true;if(!form)manageCats();render()}
 });
 
 function openSum(id){
@@ -451,7 +507,7 @@ function ask(title,o,cb){
 /* ---- calendar ---- */
 let cm={y:now.getFullYear(),m:now.getMonth()},cs=today();
 const cf=n=>n>=1000?(n/1000).toFixed(1).replace(/\.0$/,"")+"K":(n>=10&&n%1===0?String(n):n.toFixed(2));
-function openCal(){cm={y:now.getFullYear(),m:now.getMonth()};cs=today();drawCal();$("cal").hidden=false}
+function openCal(asTab){$("cal").classList.toggle("tabm",!!asTab);cm={y:now.getFullYear(),m:now.getMonth()};cs=today();drawCal();$("cal").hidden=false}
 function drawCal(){
   const y=cm.y,m=cm.m,pre=y+"-"+p2(m+1),by={};
   S.tx.filter(t=>t.date.startsWith(pre)).forEach(t=>{const o=by[t.date]||(by[t.date]={e:0,i:0,l:[]});o[t.type]+=t.amt;o.l.push(t)});
@@ -474,11 +530,13 @@ function drawCal(){
   const on=$("cal").querySelector(".months .on");if(on)on.scrollIntoView({inline:"center",block:"nearest"})}
 /* ---- manage categories, budgets, data ---- */
 function manageCats(){
-  $("sheet").innerHTML=`<div class="ph"><button data-x="close" aria-label="Back">‹</button><b>Categories</b></div><div class="f">`+S.cats.map(c=>`<div class="tx"><i class="ci" style="background:${c.color}">${c.icon}</i><div class="g"><b>${esc(c.name)}</b><em class="${c.type}">${c.type==="e"?"Expense":"Income"}</em></div><button data-dc="${c.id}" aria-label="Delete ${esc(c.name)}">🗑️</button></div>`).join("")+`</div><div class="save"><button data-x="mk">New category</button></div>`;
+  $("sheet").innerHTML=`<div class="ph"><button data-x="close" aria-label="Back">‹</button><b>Categories</b></div><div class="f">`+S.cats.map(c=>`<div class="tx"><button data-ec="${c.id}" aria-label="Edit ${esc(c.name)}" style="display:flex;align-items:center;gap:14px;flex:1;min-width:0;text-align:left;padding:0"><i class="ci" style="background:${c.color}">${c.icon}</i><div class="g"><b>${esc(c.name)}</b><em class="${c.type}">${c.type==="e"?"Expense":"Income"}</em></div></button><button data-ec="${c.id}" aria-label="Edit ${esc(c.name)}" style="font-size:1.3rem">✏️</button><button data-dc="${c.id}" aria-label="Delete ${esc(c.name)}">🗑️</button></div>`).join("")+`</div><div class="save"><button data-x="mk">New category</button></div>`;
   $("sheet").hidden=false;form=null;
 }
+function editCat(id){const c=S.cats.find(x=>x.id===id);if(!c)return;cform={...c};drawCat();$("sheet2").hidden=false}
 $("sheet").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||form)return;
   if(b.dataset.x==="mk"){cform={type:"e",name:"",icon:"📁",color:COLS[0]};drawCat();$("sheet2").hidden=false}
+  if(b.dataset.ec)editCat(b.dataset.ec);
   if(b.dataset.dc){const id=b.dataset.dc;ask("Delete category?",{text:"Its transactions will show as Other.",ok:"Delete",danger:1},()=>{S.del["c"+id]=Date.now();S.cats=S.cats.filter(c=>c.id!==id);save();manageCats();render()})}
 });
 function openBudget(id){const c=catOf(id);ask("Budget: "+c.name,{value:S.budgets[id]||"",type:"number",text:"Monthly limit in "+S.cur+". Leave empty to remove.",ok:"Save budget"},v=>{const n=parseFloat(v);if(n>0)S.budgets[id]=n;else delete S.budgets[id];S.bts=Date.now();save();render()})}
@@ -487,23 +545,30 @@ function exportCSV(){const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="spendly-export.csv";a.click()}
 function pl(l){const r=[];let c="",q=false;for(let i=0;i<l.length;i++){const h=l[i];if(q){if(h=='"'&&l[i+1]=='"'){c+='"';i++}else if(h=='"')q=false;else c+=h}else if(h=='"')q=true;else if(h===","){r.push(c);c=""}else c+=h}r.push(c);return r}
 $("file").onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();
-  rd.onload=()=>{let n=0;rd.result.split(/\r?\n/).slice(1).forEach((l,i)=>{if(!l.trim())return;const [date,time,type,cat,amt,title]=pl(l),a=parseFloat(amt),ty=type==="income"?"i":"e";
-    if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&a>0&&(type==="income"||type==="expense")){let c=S.cats.find(x=>x.name===cat&&x.type===ty);if(!c){c={id:"c"+Date.now()+i,name:cat||"Other",icon:"📁",color:COLS[0],type:ty};S.cats.push(c)}
-      S.tx.push({id:Date.now()+i,date,time:time||"00:00",type:ty,amt:a,cat:c.id,title:title||"",m:Date.now()});n++}});save();render();ask("Import finished",{text:n+" transactions imported.",ok:"OK",nocancel:1})};
+  rd.onload=()=>{let n=0,dup=0,bad=0;const have={},key=(d,t,ty,c,m,ti)=>[d,t,ty,c,m,ti].join("|");
+    S.tx.forEach(t=>{const k=key(t.date,t.time,t.type,t.cat,t.amt,t.title||"");have[k]=(have[k]||0)+1});
+    rd.result.split(/\r?\n/).slice(1).forEach((l,i)=>{if(!l.replace(/,/g,"").trim())return;const [d0,t0,ty0,c0,amt,title]=pl(l),a=parseFloat(amt),type=(ty0||"").trim().toLowerCase(),ty=type==="income"?"i":"e",cat=(c0||"").trim();
+    let date=(d0||"").trim(),m=date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)date=m[3]+"-"+p2(+m[2])+"-"+p2(+m[1]);
+    let time="00:00";const tm=(t0||"").trim().match(/^(\d{1,2}):(\d{2})/);if(tm)time=p2(+tm[1])+":"+tm[2];
+    if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&a>0&&(type==="income"||type==="expense")){let c=S.cats.find(x=>x.name.toLowerCase()===cat.toLowerCase()&&x.type===ty);if(!c){c={id:"c"+Date.now()+i,name:cat||"Other",icon:"\u{1F4C1}",color:COLS[0],type:ty};S.cats.push(c)}
+      const k=key(date,time,ty,c.id,a,(title||"").trim());if(have[k]>0){have[k]--;dup++;return}
+      S.tx.push({id:Date.now()+i,date,time,type:ty,amt:a,cat:c.id,title:(title||"").trim(),m:Date.now()});n++}else bad++});save();render();ask("Import finished",{text:n+" transactions imported"+(dup?", "+dup+" already in the app (skipped)":"")+(bad?", "+bad+" rows skipped":"")+".",ok:"OK",nocancel:1})};
   rd.readAsText(f);e.target.value=""};
 
+matchMedia("(max-width:699px)").addEventListener("change",()=>{if(!$("app").hidden)render()});
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;const d=b.dataset;
-  if(d.t){tab=d.t;render();scrollTo(0,0)}
+  if(d.x==="drawer"){$("drawer").classList.toggle("open")}
+  else if(d.t){tab=d.t;render();scrollTo(0,0)}
   else if(d.e)openTx(+d.e);
   else if(d.m){const [y,m]=d.m.split("-");mon={y:+y,m:+m};render()}
   else if(d.b)openBudget(d.b);
   else if(d.s)openSum(d.s);
   else if(d.st){sumT=d.st;render()}
   else if(d.a==="name")ask("Your name",{value:S.name,ok:"Save name"},v=>{if(v&&v.trim()){S.name=v.trim();S.sts=Date.now();save();render()}});
-  else if(d.a==="cal")openCal();
-  else if(d.a==="ana")openAna();
-  else if(d.x==="calclose")$("cal").hidden=true;
+  else if(d.a==="cal"){tab="cal";render();scrollTo(0,0)}
+  else if(d.a==="ana"){tab="ana";render();scrollTo(0,0)}
+  else if(d.x==="calclose"){if(tab==="cal")tab="home";$("cal").hidden=true;$("cal").classList.remove("tabm");render()}
   else if(d.cd){cs=d.cd;drawCal()}
   else if(d.cm){const [y,m]=d.cm.split("-");cm={y:+y,m:+m};const t=today();cs=t.startsWith(cm.y+"-"+p2(cm.m+1))?t:cm.y+"-"+p2(cm.m+1)+"-01";drawCal()}
   else if(d.cadd)openTx(null,cs);
@@ -528,7 +593,7 @@ function gsMsg(t){const m=$("gsm");if(m)m.textContent=t}
 function gsRead(){S.gsUrl=$("gu").value.trim();S.gsKey=$("gk").value.trim();S.auto=$("ga").checked;save(1)}
 const GS_DEFAULT="https://script.google.com/macros/s/AKfycbzYzZUCYzjecw6EuwpZjFp53tVn-mD29qabLmq-jDchXD1Bv-zM1A0dPyseLJ23IFvL/exec";
 function openGS(){
-  $("mc").innerHTML=`<h3 style="margin:0 0 8px">Google Sheet backup</h3><p class="mute" style="margin:0 0 10px;font-size:.85rem">Paste the web app URL from your Apps Script and the secret key you set in it.</p><input id="gu" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(S.gsUrl||GS_DEFAULT)}" aria-label="Web app URL"><input id="gk" placeholder="Secret key" value="${esc(S.gsKey||"")}" aria-label="Secret key" style="margin-top:8px"><label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-size:.9rem"><input id="ga" type="checkbox" style="width:auto;border:0" ${S.auto!==false?"checked":""}>Auto-backup after every change</label><p class="mute" id="gsm" style="font-size:.85rem;margin:10px 0 0;min-height:1.2em">${S.lastBackup?"Last backup: "+esc(new Date(S.lastBackup).toLocaleString()):""}</p><div class="acts2"><button type="button" class="btn2" id="gb">Back up now</button><button type="button" class="btn2 alt" id="gr">Restore</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gc">Close</button><button type="button" class="btn2 alt" id="gd">Disconnect</button></div>`;
+  $("mc").innerHTML=`<h3 style="margin:0 0 8px">Google Sheet backup</h3><p class="mute" style="margin:0 0 10px;font-size:.85rem">Paste the web app URL from your Apps Script and the secret key you set in it.</p><input id="gu" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(S.gsUrl||'')}" aria-label="Web app URL"><input id="gk" placeholder="Secret key" value="${esc(S.gsKey||"")}" aria-label="Secret key" style="margin-top:8px"><label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-size:.9rem"><input id="ga" type="checkbox" style="width:auto;border:0" ${S.auto!==false?"checked":""}>Auto-backup after every change</label><p class="mute" id="gsm" style="font-size:.85rem;margin:10px 0 0;min-height:1.2em">${S.lastBackup?"Last backup: "+esc(new Date(S.lastBackup).toLocaleString()):""}</p><div class="acts2"><button type="button" class="btn2" id="gb">Back up now</button><button type="button" class="btn2 alt" id="gr">Restore</button></div><div class="acts2"><button type="button" class="btn2 alt" id="gc">Close</button><button type="button" class="btn2 alt" id="gd">Disconnect</button></div>`;
   $("md").hidden=false;
   $("gc").onclick=()=>{gsRead();$("md").hidden=true;render()};
   $("gd").onclick=()=>{delete S.gsUrl;delete S.gsKey;delete S.lastBackup;save(1);$("md").hidden=true;render()};
@@ -687,7 +752,8 @@ function anaMatch(t,r){
 const sumBy=(l,ty)=>l.filter(t=>t.type===ty).reduce((x,t)=>x+t.amt,0);
 function spanDays(a,b,l){if(!a&&l.length)a=l.reduce((m,t)=>t.date<m?t.date:m,l[0].date);if(!a)return 1;if(!b)b=today();
   return Math.max(1,Math.round((new Date(b+"T00:00")-new Date(a+"T00:00"))/864e5)+1)}
-function openAna(){
+function openAna(asTab){
+  $("ana").classList.toggle("tabm",!!asTab);
   $("ana").innerHTML=`<div class="ph"><button data-x="anaclose" aria-label="Back">‹</button><b>Analytics</b></div><div class="f" id="anf"></div><div class="f" id="anr"></div>`;
   drawAnaShell();drawAna();$("ana").hidden=false}
 function drawAnaShell(){
@@ -746,7 +812,7 @@ function anaExport(){
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="spendly-analytics.csv";a.click()}
 $("ana").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;const d=b.dataset;
-  if(d.x==="anaclose"){$("ana").hidden=true;render()}
+  if(d.x==="anaclose"){if(tab==="ana")tab="home";$("ana").hidden=true;$("ana").classList.remove("tabm");render()}
   else if(d.per){af.per=d.per;drawAnaShell();drawAna()}
   else if(d.ty){af.type=d.ty;drawAnaShell();drawAna()}
   else if(d.cat){af.cat=d.cat;drawAnaShell();drawAna();$("ana").scrollTop=0}
@@ -821,7 +887,7 @@ document.addEventListener("keydown",e=>{
   if(!$("md").hidden){$("md").hidden=true;return}
   for(const id of ["sheet2","sheet","ana","cal"])if(!$(id).hidden){$(id).hidden=true;return}
 });
-if(false)
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))
   addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 
 </script>
